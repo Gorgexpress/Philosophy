@@ -23,7 +23,7 @@ import java.util.List;
  *
  * @author Michael
  */
-public class MyCrawler {
+public class WikiCrawler {
     private static final int DELAY_IN_MS = 200;
     /**
      * 
