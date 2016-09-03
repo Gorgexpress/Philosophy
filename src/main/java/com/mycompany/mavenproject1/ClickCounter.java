@@ -35,6 +35,10 @@ public class ClickCounter {
      * @throws InterruptedException 
      */
     public Integer countClicks(String source) throws IOException, InterruptedException {
+        //shorten string to 250 characters if its larger. Largest wiki article
+        // title is a bit over 200.
+        if(source.length() > 250)
+            source = source.substring(0, 250);
         //replace spaces with underscores, as spaces aren't allowed in the urls
         //to wikipedia articles.
         source = source.replaceAll(" ", "_");
