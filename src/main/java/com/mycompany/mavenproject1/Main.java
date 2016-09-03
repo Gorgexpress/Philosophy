@@ -19,6 +19,9 @@ public class Main {
     
     public static void main(String[] args) {
         ClickCounter counter = new ClickCounter();
+        //opens session with database. If you don't call init, the program
+        //will still work correctly. It just won't query or save results into
+        //the database. 
         counter.init();
         System.out.print("Enter number of strings to input N, followed by N strings: ");
         Scanner scanner = new Scanner(System.in);
