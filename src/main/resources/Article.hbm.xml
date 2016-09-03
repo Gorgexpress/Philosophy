@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+  <class name="com.mycompany.mavenproject1.Article" table="Article">
+      <meta attribute="class-description">
+         This class article name and clicks to get to philosophy
+      </meta>
+      <id name="articleName" type="string">
+         <column name="name" length="250"></column>
+         <generator class="assigned"/>
+      </id>
+      <property name="clicks" column="clicks" type="int"/>
+   </class>
+</hibernate-mapping>
