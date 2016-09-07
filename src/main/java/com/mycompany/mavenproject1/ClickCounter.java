@@ -22,7 +22,16 @@ public class ClickCounter {
     private final String DESTINATION = "Philosophy";
     private static final int DELAY_IN_MS = 200;
     private Session session;
-    private final WikiCrawler crawler = new WikiCrawler();
+    private final WikiCrawler crawler;
+    
+    ClickCounter() {
+        this.crawler = new WikiCrawler();
+    }
+    
+    ClickCounter(WikiCrawler crawler) {
+        this.crawler = crawler;
+    }
+    
     
     /**
      * @param source string used to search for a wikipedia article title

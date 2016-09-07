@@ -16,7 +16,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 
 /**
@@ -25,6 +26,7 @@ import java.util.List;
  */
 public class WikiCrawler {
     private static final int DELAY_IN_MS = 200;
+    private static final Logger logger = LogManager.getLogger();
     /**
      * 
      * @param articleName String used to search for wikipedia article
@@ -34,7 +36,7 @@ public class WikiCrawler {
      * @throws IOException 
      */
     public String search(String articleName) throws MalformedURLException, IOException {
-        articleName = articleName.replaceAll(" ", "_");
+        articleName = articleName.replaceAll(" ", "+");
         URL url = new URL("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + articleName + "&srlimit=1&format=json");
         HttpURLConnection request = (HttpURLConnection) url.openConnection();
         request.connect();
@@ -85,7 +87,7 @@ public class WikiCrawler {
      *      in the input article
      * @throws IOException 
      */
-    public String firstLowercaseArticle(String articleName) throws IOException {
+    public String firstLowercaseArticle(String articleName) throws IOException, InterruptedException {
         //section of the current article
         int section = 0; 
         //So far, the result has always been in the first section. If section
@@ -103,38 +105,59 @@ public class WikiCrawler {
             String text = parse.getAsJsonObject("text").get("*").getAsString();
             //the paragraph element is where the main text of the article normally begins
             int index = text.indexOf("<p>");
-            //If it's followed immediately by a span, we aren't in the main article yet.
-            while((index != -1  && text.length() >= index + 8 && text.substring(index + 3, index + 8).equals("<span"))) {
+            //Sometimes there are p tags with links before the main article text. We'll search for the bold tag,
+            //as the first sentence of an article usually contains the name of the article in bold.
+            while((section == 0 && index != -1  && text.indexOf("<b>", index) > text.indexOf("</p>", index))) 
                 index = text.indexOf("<p>", index + 1);
-            }
-            while((section == 0 && index != -1  && text.indexOf("<b>", index) > text.indexOf("</p>", index))) {
-                index = text.indexOf("<p>", index + 1);
-            }
+    
+            //couldn't find article text
             if(index == -1) continue;
+            
+            int lastOpeningParen = text.indexOf('(', index);
+            int lastOpeningItalics = text.indexOf("<i>", index);
+            int lastOpeningDiv = text.indexOf("<div");
+            int lastOpeningSpan = text.indexOf("<span");
             while(true) {
                 //get index of next link
                 index = text.indexOf("<a href=", index + 1);
                 if(index == -1) break;
                 //find position of the start of the link's displayed text
                 int startOfLinkText = text.indexOf("\">", index) + 2;
+                String sub = text.substring(startOfLinkText, startOfLinkText + 10);
                 //If our link text is parenthesized, skip the current link.
-                int nextClosingParen = text.indexOf(')', startOfLinkText);
-                int lastOpeningParen = text.indexOf('(');
-                while(lastOpeningParen != -1 && text.indexOf('(', lastOpeningParen + 1) < startOfLinkText)
-                    lastOpeningParen = text.indexOf('(', lastOpeningParen + 1);
-                if(lastOpeningParen != -1 && lastOpeningParen < startOfLinkText) {
-                    if (nextClosingParen != -1 && text.indexOf(')', lastOpeningParen) == nextClosingParen)
-                        continue;
+                IsInsideResults result;
+                result = isInside(text, startOfLinkText, startOfLinkText, "(", ")", lastOpeningParen);
+                lastOpeningParen = result.lastOpeningIndex;
+                if(result.isInside) {
+                    index = result.nextClosingIndex;
+                    continue;
                 }
-                //repeat for italicized 
-                int nextClosingItalics = text.indexOf("</i>", startOfLinkText);
-                int lastOpeningItalics = text.indexOf("<i>");
-                while(lastOpeningItalics != -1 && text.indexOf("<i>", lastOpeningItalics + 1) < startOfLinkText)
-                    lastOpeningItalics = text.indexOf("<i>", lastOpeningItalics + 1);
-                if(lastOpeningItalics != -1 && lastOpeningItalics < startOfLinkText) {
-                    if (nextClosingItalics != -1 && text.indexOf("</i>", lastOpeningItalics) == nextClosingItalics)
-                        continue;
+                //same for italics
+                result = isInside(text, startOfLinkText, startOfLinkText, "(", ")", lastOpeningItalics);
+                lastOpeningItalics = result.lastOpeningIndex;
+                if(result.isInside) {
+                    index = result.nextClosingIndex;;
+                    continue;
                 }
+                //Sometimes there will be divs/spans with links with the float:right
+                //attribute. They won't be the first clickable links when
+                //viewing the page normally, but they will appear earlier than the
+                //main article text in the html itself. We should avoid links contained
+                //in divs and spans as a result. Main article text is normally only be 
+                //a child of the body tag.
+                result = isInside(text, startOfLinkText, startOfLinkText, "<span", "</span>", lastOpeningSpan);
+                lastOpeningSpan = result.lastOpeningIndex;
+                if(result.isInside) {
+                    index = result.nextClosingIndex;;
+                    continue;
+                }
+                result = isInside(text, startOfLinkText, startOfLinkText, "<div", "</div>", lastOpeningDiv);
+                lastOpeningDiv = result.lastOpeningIndex;
+                if(result.isInside) {
+                    index = result.nextClosingIndex;;
+                    continue;
+                }
+                
                 //grab name of the next article
                 index = text.indexOf("href", index);
                 index = text.indexOf('"', index) + 1;
@@ -149,47 +172,48 @@ public class WikiCrawler {
 
             }
             section++;
+            Thread.sleep(DELAY_IN_MS);
         }
         System.out.println("Exiting loop in MyCrawler.search. Most likely was an infinite loop");
         return null;
     }
     
-   
-
-    
     /**
-     * Removes any text in parenthesis from the input. Not using this for now.
-     * @param html text to remove parenthesis from
-     * @return string with all text within parenthesis removed
+     * Checks if the text between two indices are between a specified opening
+     * and closing string.
+     * @param text text to search in
+     * @param start starting index
+     * @param end ending index 
+     * @param opening opening pattern ex. <i>
+     * @param closing closing pattern ex. </i>
+     * @param lastOpeningIndex last known index of the opening pattern, so we don't
+     * have to search the entire string for it everytime this method is called
+     * @return  true if the text between the start and end indices is contained between
+     * the opening and closing strings, false if not.
      */
-    private String removeParenthesized(String html) {
-        List<Integer> indicesToInclude = new ArrayList<>();
-        indicesToInclude.add(0);
-        int count = 0;
-        for(int i = 0; i < html.length(); i++) {
-            if(html.charAt(i) == '(') {
-                if(count == 0 && i > 0 && html.charAt(i - 1) == '_') 
-                    i = html.indexOf(')', i);
-                else {
-                    if(count == 0 && i > 0)
-                        indicesToInclude.add(i);
-                    count++;
-                }
-            }
-            else if(html.charAt(i) == ')') {
-                count--;
-                if(count == 0 && i < html.length() - 1)
-                    indicesToInclude.add(i + 1);
-            }
-            
-        }
-        indicesToInclude.add(html.length());
-        StringBuilder newHtml = new StringBuilder();
-        for(int i = 0; i < indicesToInclude.size(); i += 2) {
-            newHtml.append(html.substring(indicesToInclude.get(i), indicesToInclude.get(i + 1)));
-        }
-        return newHtml.toString();
+    private IsInsideResults isInside(String text, int start, int end, String opening, String closing, int lastOpeningIndex) {
+        if(lastOpeningIndex > end || lastOpeningIndex == -1) return new IsInsideResults(false, lastOpeningIndex, end);
+        //If our link text is parenthesized, skip the current link.
+        int nextClosingIndex = text.indexOf(closing, end);
+        while(lastOpeningIndex != -1 && text.indexOf(opening, lastOpeningIndex  + 1) < start)
+                    lastOpeningIndex  = text.indexOf(opening, lastOpeningIndex  + 1);
+        if(lastOpeningIndex  != -1 && lastOpeningIndex < start) 
+            if (nextClosingIndex != -1 && text.indexOf(closing, lastOpeningIndex) == nextClosingIndex)
+                return new IsInsideResults(true, lastOpeningIndex, nextClosingIndex);
+        return new IsInsideResults(false, lastOpeningIndex, nextClosingIndex);
+         
     }
     
+    private class IsInsideResults {
+        public boolean isInside;
+        public int lastOpeningIndex;
+        public int nextClosingIndex;
+        IsInsideResults(boolean isInside, int lastOpeningIndex, int nextClosingIndex) {
+            this.isInside = isInside;
+            this.lastOpeningIndex = lastOpeningIndex;
+            this.nextClosingIndex = nextClosingIndex;
+            
+        }
+    }
   
 }
