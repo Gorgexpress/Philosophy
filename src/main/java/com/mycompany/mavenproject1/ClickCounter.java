@@ -95,7 +95,7 @@ public class ClickCounter {
             //add current article to our set and list, then find the next article.
             set.add(currentArticleName);
             list.add(currentArticleName);
-            currentArticleName = crawler.firstLowercaseArticle(currentArticleName);
+            currentArticleName = crawler.nextArticle(currentArticleName);
             counter++;
             //check for loop
             if(set.contains(currentArticleName)) {

@@ -90,7 +90,7 @@ public class WikiCrawlerTest {
         String articleName = "Physics";
         WikiCrawler instance = new WikiCrawler();
         String expResult = "Natural_science";
-        String result = instance.firstLowercaseArticle(articleName);
+        String result = instance.nextArticle(articleName);
         assertEquals(expResult, result);
     }
     
@@ -104,7 +104,7 @@ public class WikiCrawlerTest {
         String articleName = "Polymer";
         WikiCrawler instance = new WikiCrawler();
         String expResult = "Molecule";
-        String result = instance.firstLowercaseArticle(articleName);
+        String result = instance.nextArticle(articleName);
         assertEquals(expResult, result);
     }
     
@@ -118,10 +118,10 @@ public class WikiCrawlerTest {
         String articleName = "";
         WikiCrawler instance = new WikiCrawler();
         String expResult = null;
-        String result = instance.firstLowercaseArticle(articleName);
+        String result = instance.nextArticle(articleName);
         assertEquals(expResult, result);
         articleName = "GVFERgokregpgregkqergpokregpreqgphoerhbqhjhty";
-        result = instance.firstLowercaseArticle(articleName);
+        result = instance.nextArticle(articleName);
         assertEquals(expResult, result);
     }
     
@@ -134,7 +134,7 @@ public class WikiCrawlerTest {
         String articleName = "Music_(disambiguation)";
         WikiCrawler instance = new WikiCrawler();
         String expResult = "Music";
-        String result = instance.firstLowercaseArticle(articleName);
+        String result = instance.nextArticle(articleName);
         assertEquals(expResult, result);
     }
     

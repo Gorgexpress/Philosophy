@@ -16,8 +16,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.log4j.Logger;
+
+
+import org.slf4j.helpers.MessageFormatter;
 
 
 /**
@@ -26,7 +28,10 @@ import org.apache.logging.log4j.Logger;
  */
 public class WikiCrawler {
     private static final int DELAY_IN_MS = 200;
-    private static final Logger logger = LogManager.getLogger();
+    private final Logger logger = Logger.getLogger(WikiCrawler.class);
+    private static final String SEARCH_FORMAT = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&srlimit=1&format=json";
+    private static final String PARSE_FORMAT = "https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=%s&section=%s";
+    private final MessageFormatter formatter = new MessageFormatter();
     /**
      * 
      * @param articleName String used to search for wikipedia article
@@ -37,7 +42,8 @@ public class WikiCrawler {
      */
     public String search(String articleName) throws MalformedURLException, IOException {
         articleName = articleName.replaceAll(" ", "+");
-        URL url = new URL("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + articleName + "&srlimit=1&format=json");
+        URL url = new URL(String.format(SEARCH_FORMAT, articleName));
+        //URL url = new URL("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + articleName + "&srlimit=1&format=json");
         HttpURLConnection request = (HttpURLConnection) url.openConnection();
         request.connect();
         
@@ -59,7 +65,7 @@ public class WikiCrawler {
     but likely costs wikipedia more bandwidth. 
     */
     /*
-    public String firstLowercaseArticle(String url) throws IOException {
+    public String nextArticle(String url) throws IOException {
         long startTime = System.currentTimeMillis();
         Document doc = Jsoup.connect(baseUrl + url).get();
         System.out.println("time to parse: " + (System.currentTimeMillis() - startTime));
@@ -87,14 +93,15 @@ public class WikiCrawler {
      *      in the input article
      * @throws IOException 
      */
-    public String firstLowercaseArticle(String articleName) throws IOException, InterruptedException {
+    public String nextArticle(String articleName) throws IOException, InterruptedException {
         //section of the current article
         int section = 0; 
         //So far, the result has always been in the first section. If section
         //gets to 5 we're most likely in an infinite loop. Has yet to happen though.
         while(section < 5) {
             //Make api call and grab the article text from it
-            URL url = new URL("https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=" + articleName +"&section=" + section);
+            URL url = new URL(String.format(PARSE_FORMAT, articleName, section));
+            //URL url = new URL("https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=" + articleName +"&section=" + section);
             HttpURLConnection request = (HttpURLConnection) url.openConnection();
             request.connect();
             JsonParser jp = new JsonParser();

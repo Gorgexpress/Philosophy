@@ -63,7 +63,7 @@ public class ClickCounterTest {
         index = 0;
         String source = "Physics";
         when(crawler.search(any())).thenReturn("Physics");
-        when(crawler.firstLowercaseArticle(any(String.class))).thenReturn("Natural_science", "Science", "Knowledge", 
+        when(crawler.nextArticle(any(String.class))).thenReturn("Natural_science", "Science", "Knowledge", 
                 "Awareness", "Consciousness", "Quality_(philosophy)", "Philosophy");
         Integer result = instance.countClicks(source);
         Integer expResult = 7;
@@ -81,7 +81,7 @@ public class ClickCounterTest {
         index = 0;
         String source = "Physics";
         when(crawler.search(any())).thenReturn("Physics");
-        when(crawler.firstLowercaseArticle(any(String.class))).thenReturn("Natural_science", "Science", "Knowledge", 
+        when(crawler.nextArticle(any(String.class))).thenReturn("Natural_science", "Science", "Knowledge", 
                 "Awareness", "Consciousness", "Knowledge");
         Integer result = instance.countClicks(source);
         Integer expResult = -6;
@@ -99,7 +99,7 @@ public class ClickCounterTest {
         index = 0;
         String source = "egfwk0gwreogpkmwrpgmwrpgowmrgpmrwgm4rewgfewg";
         when(crawler.search(any())).thenReturn(null);
-        when(crawler.firstLowercaseArticle(any(String.class))).thenReturn(pathNormal.get(index++));
+        when(crawler.nextArticle(any(String.class))).thenReturn(pathNormal.get(index++));
         Integer result = instance.countClicks(source);
         Integer expResult = null;
         assertEquals(expResult, result);
