@@ -14,16 +14,14 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.log4j.Logger;
 
 
-import org.slf4j.helpers.MessageFormatter;
 
 
 /**
- *
+ * Contains methods used to search for a wikipedia article using a given string,
+ * 
  * @author Michael
  */
 public class WikiCrawler {
@@ -31,7 +29,8 @@ public class WikiCrawler {
     private final Logger logger = Logger.getLogger(WikiCrawler.class);
     private static final String SEARCH_FORMAT = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&srlimit=1&format=json";
     private static final String PARSE_FORMAT = "https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=%s&section=%s";
-    private final MessageFormatter formatter = new MessageFormatter();
+    //unused, but should be set in an environmental variable
+    private static final String USER_AGENT = "WikiCrawlerProj/1.0 (mabramowski3@gmail.com)";
     /**
      * 
      * @param articleName String used to search for wikipedia article
@@ -43,8 +42,8 @@ public class WikiCrawler {
     public String search(String articleName) throws MalformedURLException, IOException {
         articleName = articleName.replaceAll(" ", "+");
         URL url = new URL(String.format(SEARCH_FORMAT, articleName));
-        //URL url = new URL("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + articleName + "&srlimit=1&format=json");
         HttpURLConnection request = (HttpURLConnection) url.openConnection();
+        //request.setRequestProperty("User-Agent", USER_AGENT);
         request.connect();
         
         JsonParser jp = new JsonParser();
@@ -103,6 +102,7 @@ public class WikiCrawler {
             URL url = new URL(String.format(PARSE_FORMAT, articleName, section));
             //URL url = new URL("https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=" + articleName +"&section=" + section);
             HttpURLConnection request = (HttpURLConnection) url.openConnection();
+            //request.setRequestProperty("User-Agent", USER_AGENT);
             request.connect();
             JsonParser jp = new JsonParser();
             JsonElement root = jp.parse(new InputStreamReader((InputStream) request.getContent()));
@@ -169,10 +169,11 @@ public class WikiCrawler {
                 index = text.indexOf("href", index);
                 index = text.indexOf('"', index) + 1;
                 String nextArticle = text.substring(index, text.indexOf('"',index));
-                //Links to other articles on wikipedia do not contain colons, and start with /wiki/
+                //Links to other articles on wikipedia do not contain colons, start with /wiki/
+                //and are not red links
                 if (nextArticle.contains(":"))
                     continue;
-                if (nextArticle.contains("/wiki/"))
+                if (nextArticle.contains("/wiki/") && !nextArticle.contains("redlink=1"))
                     return nextArticle.substring(6);
                     
                 
@@ -195,8 +196,11 @@ public class WikiCrawler {
      * @param closing closing pattern ex. </i>
      * @param lastOpeningIndex last known index of the opening pattern, so we don't
      * have to search the entire string for it everytime this method is called
-     * @return  true if the text between the start and end indices is contained between
-     * the opening and closing strings, false if not.
+     * @return  an IsInsideResults object where isInside is true if the text
+     * was inside the opening and closing string, and false if not. lastOpeningIndex
+     * will be the last index of the opening string seen. next closing will be
+     * the index of the next closing string following the text indices. 
+     * Indices will be -1 if no matching string is found.
      */
     private IsInsideResults isInside(String text, int start, int end, String opening, String closing, int lastOpeningIndex) {
         if(lastOpeningIndex > end || lastOpeningIndex == -1) return new IsInsideResults(false, lastOpeningIndex, end);
@@ -210,11 +214,11 @@ public class WikiCrawler {
         return new IsInsideResults(false, lastOpeningIndex, nextClosingIndex);
          
     }
-    
+    //stores results of above method
     private class IsInsideResults {
-        public boolean isInside;
-        public int lastOpeningIndex;
-        public int nextClosingIndex;
+        public boolean isInside; //true if text is inside opening and closing string patterns
+        public int lastOpeningIndex; //index of last index of opening pattern seen
+        public int nextClosingIndex; //index of next closing pattern from the text indices.
         IsInsideResults(boolean isInside, int lastOpeningIndex, int nextClosingIndex) {
             this.isInside = isInside;
             this.lastOpeningIndex = lastOpeningIndex;

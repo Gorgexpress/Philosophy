@@ -14,7 +14,11 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 
 /**
- *
+ * Class used to number of clicks it takes to get to Philosophy from a wikipedia
+ * article, whose name is inferred by the input string. Uses a database to cache
+ * results. Initialize a session with the database with the init method, and 
+ * close it with the close method. Using the countClicks method without initializing
+ * the database will ignore the cache.
  * @author Michael
  */
 public class ClickCounter {
