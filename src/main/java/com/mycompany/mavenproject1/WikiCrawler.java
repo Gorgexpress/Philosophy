@@ -26,7 +26,6 @@ import org.apache.log4j.Logger;
  */
 public class WikiCrawler {
     private static final int DELAY_IN_MS = 200;
-    private final Logger logger = Logger.getLogger(WikiCrawler.class);
     private static final String SEARCH_FORMAT = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&srlimit=1&format=json";
     private static final String PARSE_FORMAT = "https://en.wikipedia.org/w/api.php?action=parse&redirects=true&format=json&prop=text&page=%s&section=%s";
     //unused, but should be set in an environmental variable

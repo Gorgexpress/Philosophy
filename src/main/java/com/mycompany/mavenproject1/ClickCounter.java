@@ -16,24 +16,24 @@ import org.hibernate.Transaction;
 /**
  * Class used to number of clicks it takes to get to Philosophy from a wikipedia
  * article, whose name is inferred by the input string. Uses a database to cache
- * results. Initialize a session with the database with the init method, and 
- * close it with the close method. Using the countClicks method without initializing
- * the database will ignore the cache.
+ results. Initialize a mSession with the database with the init method, and 
+ close it with the close method. Using the countClicks method without initializing
+ the database will ignore the cache.
  * @author Michael
  */
 public class ClickCounter {
     
     private final String DESTINATION = "Philosophy";
     private static final int DELAY_IN_MS = 200;
-    private Session session;
-    private final WikiCrawler crawler;
+    private Session mSession;
+    private final WikiCrawler mCrawler;
     
     ClickCounter() {
-        this.crawler = new WikiCrawler();
+        this.mCrawler = new WikiCrawler();
     }
     
     ClickCounter(WikiCrawler crawler) {
-        this.crawler = crawler;
+        this.mCrawler = crawler;
     }
     
     
@@ -58,16 +58,16 @@ public class ClickCounter {
         //If we were given our destination as the source just return.
         if(source.equals(DESTINATION)) return 0;
         
-        //If our database session is initialized, query the database to see
+        //If our database mSession is initialized, query the database to see
         //if the results have been cached, and return the results if they exist.
-        if(session != null) {
-            Article article = session.get(Article.class, source);
+        if(mSession != null) {
+            Article article = mSession.get(Article.class, source);
             if(article != null) return article.getClicks();
         }
         
         //Search for an article matching our source string. If no article
         //is found, return null.
-        String currentArticleName = crawler.search(source);
+        String currentArticleName = mCrawler.search(source);
         if(currentArticleName == null) {
             System.out.println("Could not find article");
             saveResults(source, null, null);
@@ -79,9 +79,9 @@ public class ClickCounter {
         //Keeps track of the articled we visited in the order we visited them
         List<String> list = new ArrayList<>(); //
         
-        //Query again using the article name given by crawler.search
-        if(session != null) {
-            Article article = session.get(Article.class, source);
+        //Query again using the article name given by mCrawler.search
+        if(mSession != null) {
+            Article article = mSession.get(Article.class, source);
             if(article != null) {
                 saveResults(source, list, article.getClicks());
                 return article.getClicks();
@@ -99,7 +99,7 @@ public class ClickCounter {
             //add current article to our set and list, then find the next article.
             set.add(currentArticleName);
             list.add(currentArticleName);
-            currentArticleName = crawler.nextArticle(currentArticleName);
+            currentArticleName = mCrawler.nextArticle(currentArticleName);
             counter++;
             //check for loop
             if(set.contains(currentArticleName)) {
@@ -110,8 +110,8 @@ public class ClickCounter {
                 break;
             }
             //query database for cached results using the current article name
-            if(session != null) {
-                Article article = session.get(Article.class, currentArticleName);
+            if(mSession != null) {
+                Article article = mSession.get(Article.class, currentArticleName);
                 if(article != null) {
                     counter += article.getClicks();
                     break;
@@ -139,12 +139,12 @@ public class ClickCounter {
      * @return  true of results were successfully saved, false if not
      */
     private boolean saveResults(String source, List<String> list, Integer clicks) {
-        if(session == null) return false;
-        Transaction transaction = session.beginTransaction();
+        if(mSession == null) return false;
+        Transaction transaction = mSession.beginTransaction();
         
         if(list == null || list.isEmpty() || !source.equals(list.get(0))) {
             Article sourceName = new Article(source, clicks);
-            session.save(sourceName);
+            mSession.save(sourceName);
         }
         if(clicks != null) {
             int clicksInt = clicks;
@@ -155,17 +155,17 @@ public class ClickCounter {
                     loopOffset += 1;
                 for(int i = 0; i < loopOffset; i++) {
                     Article article = new Article(list.get(i), clicksInt++);
-                    session.save(article);
+                    mSession.save(article);
                 }
                 for(int i = loopOffset; i < list.size(); i++) {
                     Article article = new Article(list.get(i), clicksInt);
-                    session.save(article);
+                    mSession.save(article);
                 }
             }    
             else {
                 for(String articleName : list) { 
                     Article newArticle = new Article(articleName, clicksInt--);
-                    session.save(newArticle);
+                    mSession.save(newArticle);
                 }
             }
         }
@@ -174,18 +174,18 @@ public class ClickCounter {
     
     }
     /**
-     * initialize our database session
+     * initialize our database mSession
      */
     public void init() {
-        session = HibernateUtil.getSessionFactory().openSession();
+        mSession = HibernateUtil.getSessionFactory().openSession();
     }
     
     /**
-     * close our database session and database factory.
+     * close our database mSession and database factory.
      */
     public void close() {
-        if(session != null) {
-            session.close();
+        if(mSession != null) {
+            mSession.close();
             HibernateUtil.shutdown();
         }
     }
